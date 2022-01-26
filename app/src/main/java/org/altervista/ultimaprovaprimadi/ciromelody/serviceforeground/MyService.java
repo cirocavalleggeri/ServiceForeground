@@ -83,6 +83,7 @@ public class MyService extends Service  {
             stopForeground(true);
             stopSelfResult(startId);
             sendNotification("Servizio MyService","stopMyService..con Id:"+startId,canale);
+            stopMyService();
         }
         canale++;
         sendNotification("MyService:", "onStartCommand di MyService partito con id:"+startId,canale);
@@ -103,8 +104,8 @@ public class MyService extends Service  {
             Log.d(TAG,"sched.scheduleAtFixedRate");
         }else{if(sched.isShutdown()||sched.isTerminated()) {
             Log.d(TAG,"sched.isShutdown() or sched.isTerminated()");
-            sched=Executors.newSingleThreadScheduledExecutor();
-            sched.scheduleAtFixedRate(beeper, 0, 15, TimeUnit.SECONDS);
+
+
         }
         }
 
@@ -120,7 +121,11 @@ public class MyService extends Service  {
         super.onDestroy();
         if(sched!=null){
             sched.shutdownNow();
-            Log.d(TAG,"scheduler shutdown");}
+            Log.d(TAG,"scheduler shutdown");
+            sched=null;
+        }
+
+
 
         Log.i(TAG, "onDestroy(): ");
         stopForeground(true);
