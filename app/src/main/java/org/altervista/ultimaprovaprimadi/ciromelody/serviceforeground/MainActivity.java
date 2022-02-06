@@ -1,6 +1,9 @@
 package org.altervista.ultimaprovaprimadi.ciromelody.serviceforeground;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -9,6 +12,7 @@ import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PersistableBundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -20,31 +24,21 @@ public class MainActivity extends AppCompatActivity {
 Button bn_start_service,bn_sgancia_service,bn_send_service,bn_ferma_service,bn_aggancia_service;
 TextView tx_status;
 
-    @Override
-    public Intent getIntent() {
-        return intent;
-    }
 
-    @Override
-    public void setIntent(Intent intent) {
-        this.intent = intent;
-    }
 
-    Intent intent;
-    public MyService istanzamyService;
 
-    //servira' per agganciare il servizio
-    public MyService getIstanzamyService() {
-        return istanzamyService;
-    }
-    boolean isServizioAgganciato=false;
+
+    MainViewModel viewModel;
+
+
+
     final String TAG="MYS";
 
     @Override
     protected void onResume() {
         super.onResume();
         controlla_bottoni();
-        if(istanzamyService==null){
+        if(viewModel.istanzamyService==null){
            //aggancia_il_servizio();
             Log.d(TAG,"onREsume instanzaService null");
 
@@ -54,17 +48,19 @@ TextView tx_status;
     }
    @Override
   protected void  onStop() {
-      sgancia_il_servizio();
+
        super.onStop();
    }
+
+
     private void controlla_bottoni() {
 
-       if(getIntent()!=null){
+       if(viewModel.getIntentservizio()!=null){
             bn_start_service.setEnabled(false);
             bn_ferma_service.setEnabled(true);
-            if(isServizioAgganciato){
+            if(viewModel.isServizioAgganciato){
                 bn_send_service.setEnabled(true);
-                bn_sgancia_service.setEnabled(false);
+                bn_sgancia_service.setEnabled(true);
                 bn_aggancia_service.setEnabled(false);
             }else {
 
@@ -85,13 +81,15 @@ TextView tx_status;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        viewModel=new ViewModelProvider(this).get(MainViewModel.class);
+
         tx_status=findViewById(R.id.textView);
         bn_start_service=findViewById(R.id.id_start_service);
         bn_sgancia_service=findViewById(R.id.id_stop_service);
         bn_send_service=findViewById(R.id.id_send_service);
         bn_ferma_service=findViewById(R.id.id_ferma_service);
         bn_aggancia_service=findViewById(R.id.id_aggancia_service);
-        if(istanzamyService==null){
+        if(viewModel.istanzamyService==null){
             //aggancia_il_servizio();
             Log.d(TAG,"onCreate instanzaService null");
 
@@ -101,8 +99,8 @@ TextView tx_status;
         bn_send_service.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(istanzamyService!=null){
-                    istanzamyService.startMyService("un saluto da MainActivity");
+                if(viewModel.istanzamyService!=null){
+                    viewModel.istanzamyService.startMyService("un saluto da MainActivity");
 
                 }
                 controlla_bottoni();
@@ -111,7 +109,7 @@ TextView tx_status;
         bn_start_service.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(istanzamyService==null){
+                if(viewModel.istanzamyService==null){
                    faiPartireIlServizio();
                    //aggancia_il_servizio();
                 }
@@ -132,7 +130,8 @@ TextView tx_status;
             public void onClick(View v) {
                //sgancia il servizio
                 //TODO;
-                //sgancia_il_servizio();
+                sgancia_il_servizio();
+
                 controlla_bottoni();
             }
         });
@@ -142,37 +141,41 @@ TextView tx_status;
              // sgancia_il_servizio();
               fermaIlServizio();
               //istanzamyService.stopMyService();
+              sgancia_il_servizio();
+
               controlla_bottoni();
 
           }
       });
     }
     private void aggancia_il_servizio() {
-        if(getIntent()!=null){
-            isServizioAgganciato =this.getApplication().bindService(getIntent(), serviceConnection, Context.BIND_AUTO_CREATE);
+        if(viewModel.getIntentservizio()!=null){
+            viewModel.isServizioAgganciato =this.getApplication().bindService(viewModel.getIntentservizio(), viewModel.serviceConnection, Context.BIND_AUTO_CREATE);
                 }
-        if(isServizioAgganciato){  tx_status.setText("myService agganciato");}
+        if(viewModel.isServizioAgganciato){  tx_status.setText("myService agganciato");}
     }
 
     private void sgancia_il_servizio() {
 
-        if (isServizioAgganciato) {getApplicationContext().unbindService(serviceConnection);
+        if (viewModel.isServizioAgganciato&&(viewModel.serviceConnection!=null)) {getApplicationContext().unbindService(viewModel.serviceConnection);}
 
-        }
-        if(istanzamyService!=null){
+
+        if(viewModel.istanzamyService!=null){
             //istanzamyService.stopMyService();
-            istanzamyService = null;
+            viewModel.istanzamyService = null;
 
 
         }
-
+        viewModel.isServizioAgganciato=false;
     }
 
     private void fermaIlServizio() {
-        Intent stopIntent = new Intent(MainActivity.this, MyService.class);
-        stopIntent.setAction("ACTION.STOPFOREGROUND_ACTION");
-        startService(stopIntent);
-        setIntent(null);
+        sgancia_il_servizio();
+        viewModel.getIntentservizio().setAction("ACTION.STOPFOREGROUND_ACTION");
+        startService( viewModel.getIntentservizio());
+
+        viewModel.setIntentservizio(null);
+
 
         //tx_status.setText("myServizio fermato!");
     }
@@ -180,38 +183,17 @@ TextView tx_status;
     private void  faiPartireIlServizio() {
         //start
 
-        final Intent intent = new Intent(this.getApplication(), MyService.class);
-        intent.setAction("ACTION.STARTFOREGROUND_ACTION");
+       Intent intentservizio = new Intent(this.getApplication(), MyService.class);
+        intentservizio.setAction("ACTION.STARTFOREGROUND_ACTION");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            this.getApplication().startForegroundService(intent);
+            this.getApplication().startForegroundService(intentservizio);
 
-        }else {this.getApplication().startService(intent);
+        }else {this.getApplication().startService(intentservizio);
         }
-       if(intent!=null){setIntent(intent);}
+       if(intentservizio!=null){viewModel.setIntentservizio(intentservizio);}
     }
 
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            String name = className.getClassName();
-            if (name.endsWith("MyService")) {
-                istanzamyService = ((MyService.PrivateClassBinder) service).getService();
-                controlla_bottoni();
 
-
-            }
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            Log.d(TAG,"disconnesso"+className.getClassName());
-            if (className.getClassName().endsWith("MyService")) {
-                istanzamyService = null;
-                tx_status.setText("myServizio sganciato");
-                controlla_bottoni();
-
-
-            }
-        }
-    };
 
 }
