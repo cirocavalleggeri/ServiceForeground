@@ -5,9 +5,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,6 +25,7 @@ import java.util.function.ToDoubleBiFunction;
 public class MainActivity extends AppCompatActivity {
 Button bn_start_service,bn_sgancia_service,bn_send_service,bn_ferma_service,bn_aggancia_service;
 TextView tx_status;
+MyReceiver myReceiver;
 
 
 
@@ -38,24 +41,35 @@ TextView tx_status;
     protected void onResume() {
         super.onResume();
         controlla_bottoni();
+        registra_receiver();
         if(viewModel.istanzamyService==null){
            //aggancia_il_servizio();
             Log.d(TAG,"onREsume instanzaService null");
 
 
         }
+
         //aggancia_il_servizio();
+    }
+    private void registra_receiver() {
+        if (myReceiver== null) myReceiver = new MyReceiver();
+        IntentFilter intentFilter = new IntentFilter("sendbroadcast.REFRESH_DATA_INTENT");
+        registerReceiver(myReceiver, intentFilter);
     }
    @Override
   protected void  onStop() {
 
        super.onStop();
+       cancella_receiver();
    }
+    private void cancella_receiver() {
+        if(myReceiver!=null){unregisterReceiver(myReceiver);}
+    }
 
 
     private void controlla_bottoni() {
-
-       if(viewModel.getIntentservizio()!=null){
+        if(myReceiver!=null){tx_status.setText("numerofoto:"+myReceiver.numerofoto);}
+       if((viewModel.getIntentservizio()!=null)){
             bn_start_service.setEnabled(false);
             bn_ferma_service.setEnabled(true);
             if(viewModel.isServizioAgganciato){
@@ -183,17 +197,27 @@ TextView tx_status;
     private void  faiPartireIlServizio() {
         //start
 
-       Intent intentservizio = new Intent(this.getApplication(), MyService.class);
-        intentservizio.setAction("ACTION.STARTFOREGROUND_ACTION");
+      viewModel.intentservizio = new Intent(this.getApplication(), MyService.class);
+        viewModel.intentservizio.setAction("ACTION.STARTFOREGROUND_ACTION");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            this.getApplication().startForegroundService(intentservizio);
+            this.getApplication().startForegroundService(viewModel.intentservizio);
 
-        }else {this.getApplication().startService(intentservizio);
+        }else {this.getApplication().startService(viewModel.intentservizio);
         }
-       if(intentservizio!=null){viewModel.setIntentservizio(intentservizio);}
+       if(viewModel.intentservizio!=null){viewModel.setIntentservizio(viewModel.intentservizio);}
     }
 
-
+    public boolean checkServiceRunning(Class<?> serviceClass){
+        ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE))
+        {
+            if (serviceClass.getName().equals(service.service.getClassName()))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
 
 }

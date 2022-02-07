@@ -212,6 +212,7 @@ public class MyService extends Service  {
             Log.d(TAG,"durata tempo:"+differenzaTempo);
             showNotification(numero_foto+" New Picture Taken:"+differenzaTempo+" millisecondi");
             setRunningService(true);
+            sendBroadcast(new Intent("sendbroadcast.REFRESH_DATA_INTENT").putExtra("numerofoto", numero_foto));
 
         }
     };
